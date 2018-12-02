@@ -1,6 +1,9 @@
+import sys
+sys.path.append("./lib")
+
 from enum import Enum
 
-@unique
+
 class State(Enum):
    Oben = 1
    Unten = 2

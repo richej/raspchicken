@@ -2,90 +2,108 @@ import lcddriver
 import time
 import RPi.GPIO as GPIO
 import datetime
-import ChickenDoorState.State as State
+import ChickenDoorState
 
 
 mode=GPIO.getmode()
 
 GPIO.cleanup()
 
-Forward=8
-Backward=10
+AktuellerStatus = ChickenDoorState.State.Oben
+BewHoch=8
+BewRunter=10
 TasterHoch=18
 TasterRunter=16
-KontaktUnten=36
-KontaktOben=38
+KontaktUnten=24
+KontaktOben=22
 
 GPIO.setmode(GPIO.BOARD)
-GPIO.setup(Forward, GPIO.OUT)
-GPIO.setup(Backward, GPIO.OUT)
+GPIO.setup(BewHoch, GPIO.OUT)
+GPIO.setup(BewRunter, GPIO.OUT)
+
+def SetText(text,lineNum):
+    lcd.lcd_display_string("%s                          "%text,lineNum)
+   
 
 def Hochfahren():
-    GPIO.output(Forward, GPIO.HIGH)
+    GPIO.output(BewHoch, GPIO.HIGH)
     print("Hoch")
 
-def BewegungStop():
-    GPIO.output(Forward, GPIO.LOW)
-    lcd.lcd_clear()
-    lcd.lcd_backlight("off")
-    print("Stopp")
-
 def Runterfahren():
-    GPIO.output(Backward, GPIO.HIGH)
+    GPIO.output(BewRunter, GPIO.HIGH)
     print("Runter")
 
-def TasterHoch():
-    print("Taster HOCH gedrückt")
-    lcd.lcd_clear()
-    lcd.lcd_backlight("on")  
-    Hochfahren()
-    lcd.lcd_display_string("HOCH",1)
+def BewegungStopOben():
+    GPIO.output(BewHoch, GPIO.LOW)
+    GPIO.output(BewRunter, GPIO.LOW)
+    SetText("Stopp Oben",1)
+    print("Stopp")
 
-def TasterRunter():
+def BewegungStopUnten():
+    GPIO.output(BewHoch, GPIO.LOW)
+    GPIO.output(BewRunter, GPIO.LOW)
+    SetText("Stopp Unten",1)
+    print("Stopp")
+
+
+
+def TasterHochGedrueckt():
+    print("Taster HOCH gedrückt")
+    SetText("Hoch",1)
+    Hochfahren()
+
+def TasterRunterGedrueckt():
     print("Taster RUNTER gedrückt")
-    lcd.lcd_clear()
-    lcd.lcd_backlight("on")  
+    SetText("Runter",1)
     Runterfahren()
-    lcd.lcd_display_string("RUNTER",1)
 
 
 
 
 lcd = lcddriver.lcd()
 
-
+print("TasterHoch: %s"%(TasterHoch))
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(TasterHoch, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
 GPIO.setup(TasterRunter, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
 GPIO.setup(KontaktOben, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
 GPIO.setup(KontaktUnten, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
 
-GPIO.output(Forward, GPIO.LOW)
-GPIO.output(Backward, GPIO.LOW)
+GPIO.output(BewRunter, GPIO.LOW)
+GPIO.output(BewHoch, GPIO.LOW)
 
 # Ereignis-Prozedur für Eingang HIGH
 def doIfHigh(channel):
+    print("Channel %s is HIGH"%channel)
     if channel == TasterHoch:    
-        TasterHoch()
+        TasterHochGedrueckt() 
     elif channel == TasterRunter:  
-        TasterRunter()
+        TasterRunterGedrueckt()
     elif channel == KontaktOben:
-        BewegungStop()
+        BewegungStopOben()
     elif channel == KontaktUnten:
-        BewegungStop()
+        BewegungStopUnten()
    # else:                  # if port 25 != 1  
    #     lcd.lcd_clear()
     #    lcd.lcd_backlight("off")
      #   BewegungStop()
 
 
- 
-# Ereignis deklarieren
-GPIO.add_event_detect(TasterHoch, GPIO.RISING, callback = doIfHigh, bouncetime = 200)
-GPIO.add_event_detect(TasterRunter, GPIO.RISING, callback = doIfHigh, bouncetime = 200)
-GPIO.add_event_detect(KontaktOben, GPIO.RISING, callback = doIfHigh, bouncetime = 200)
-GPIO.add_event_detect(KontaktUnten, GPIO.RISING, callback = doIfHigh, bouncetime = 200)
 
+# Ereignis deklarieren
+GPIO.add_event_detect(TasterHoch, GPIO.RISING, callback = doIfHigh, bouncetime = 2000)
+GPIO.add_event_detect(TasterRunter, GPIO.RISING, callback = doIfHigh, bouncetime = 2000)
+GPIO.add_event_detect(KontaktOben, GPIO.RISING, callback = doIfHigh, bouncetime = 2000)
+GPIO.add_event_detect(KontaktUnten, GPIO.RISING, callback = doIfHigh, bouncetime = 2000)
+
+
+if GPIO.input(KontaktUnten):
+    AktuellerStatus = ChickenDoorState.State.Unten
+else:
+    AktuellerStatus = ChickenDoorState.State.StopMitte
+
+    
+GPIO.output(BewHoch, GPIO.HIGH)
 
 lcd.lcd_backlight("on")  
 lcd.lcd_display_string("Willkommen!",1)
